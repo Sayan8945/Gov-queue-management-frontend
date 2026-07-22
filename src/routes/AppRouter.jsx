@@ -6,6 +6,7 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import AuthLayout from '@/layouts/AuthLayout';
 import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
+import VerifyEmailPage from '@/pages/auth/VerifyEmailPage';
 
 import CitizenLayout from '@/layouts/CitizenLayout';
 import CitizenHomePage from '@/pages/citizen/CitizenHomePage';
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
+      { path: '/verify-email', element: <VerifyEmailPage /> },
     ],
   },
 

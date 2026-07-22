@@ -10,13 +10,13 @@ import Button from '@/components/ui/Button';
 
 const schema = z
   .object({
-    name: z.string().min(2, 'Name must be at least 2 characters'),
+    fullName: z.string().min(2, 'Name must be at least 2 characters').max(120),
     email: z.string().min(1, 'Email is required').email('Enter a valid email'),
-    phone: z
+    mobileNumber: z
       .string()
       .min(10, 'Enter a valid phone number')
-      .regex(/^[0-9+\s-]+$/, 'Enter a valid phone number'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+      .regex(/^\+?[0-9]{10,15}$/, 'Enter a valid phone number'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -38,9 +38,9 @@ export default function RegisterPage() {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      const user = await registerCitizen(data);
-      toast.success(`Account created. Welcome, ${user.name}!`);
-      navigate('/citizen/home', { replace: true });
+      await registerCitizen(data);
+      toast.success('Registration successful. Check your email for a verification code.');
+      navigate('/verify-email', { replace: true });
     } catch (error) {
       toast.error(error.message || 'Registration failed');
     } finally {
@@ -63,8 +63,8 @@ export default function RegisterPage() {
           autoComplete="name"
           placeholder="Jane Doe"
           required
-          error={errors.name?.message}
-          {...register('name')}
+          error={errors.fullName?.message}
+          {...register('fullName')}
         />
         <Input
           label="Email address"
@@ -81,8 +81,8 @@ export default function RegisterPage() {
           autoComplete="tel"
           placeholder="+91 98765 43210"
           required
-          error={errors.phone?.message}
-          {...register('phone')}
+          error={errors.mobileNumber?.message}
+          {...register('mobileNumber')}
         />
         <Input
           label="Password"

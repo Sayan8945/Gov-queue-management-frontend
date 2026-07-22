@@ -1,47 +1,117 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { findUserByEmail } from '@/mock/users';
+import * as authService from '@/services/authService';
 
-// TODO(backend): replace this simulated auth with real JWT-based auth against
-// POST /api/auth/login, POST /api/auth/register, etc.
+// Normalizes the backend's Mongoose user document (fullName/mobileNumber/_id)
+// into the shape the rest of the frontend already expects (name/phone/id),
+// so existing components (Topbar, ProfilePage, etc.) don't need to change.
+function normalizeUser(rawUser) {
+  if (!rawUser) return null;
+  return {
+    ...rawUser,
+    id: rawUser._id || rawUser.id,
+    name: rawUser.fullName || rawUser.name,
+    phone: rawUser.mobileNumber || rawUser.phone,
+  };
+}
 
 export const useAuthStore = create(
   persist(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
+      accessToken: null,
+      refreshToken: null,
 
-      login: async (email, password) => {
-        const found = findUserByEmail(email);
-        if (!found || found.password !== password) {
-          throw new Error('Invalid email or password');
+      // Set while a citizen has registered/attempted login but not yet
+      // verified their email, so /verify-email can be reloaded/refreshed
+      // without losing context.
+      pendingVerification: null, // { citizenId, email }
+
+      login: async (identifier, password, role) => {
+        try {
+          const { user, accessToken, refreshToken } = await authService.login({
+            identifier,
+            password,
+            role,
+          });
+          const safeUser = normalizeUser(user);
+          set({
+            user: safeUser,
+            isAuthenticated: true,
+            accessToken,
+            refreshToken,
+            pendingVerification: null,
+          });
+          localStorage.setItem('gq_auth_token', accessToken);
+          return safeUser;
+        } catch (error) {
+          const details = error.response?.data?.details;
+          if (details?.verified === false) {
+            set({ pendingVerification: { citizenId: details.citizenId, email: details.email } });
+          }
+          throw new Error(error.response?.data?.message || 'Invalid email or password');
         }
-        const safeUser = { ...found };
-        delete safeUser.password;
-        set({ user: safeUser, isAuthenticated: true });
-        localStorage.setItem('gq_auth_token', `mock-token-${safeUser.id}`);
-        return safeUser;
       },
 
-      registerCitizen: async ({ name, email, phone, password: _password }) => {
-        const existing = findUserByEmail(email);
-        if (existing) {
-          throw new Error('An account with this email already exists');
+      registerCitizen: async ({ name, fullName, email, phone, mobileNumber, password }) => {
+        try {
+          const result = await authService.registerCitizen({
+            fullName: fullName || name,
+            mobileNumber: mobileNumber || phone,
+            email,
+            password,
+          });
+          set({ pendingVerification: { citizenId: result.citizenId, email: result.email } });
+          return result;
+        } catch (error) {
+          throw new Error(error.response?.data?.message || 'Registration failed');
         }
-        const newUser = {
-          id: `citizen-${Date.now()}`,
-          name,
-          email,
-          phone,
-          role: 'citizen',
-        };
-        set({ user: newUser, isAuthenticated: true });
-        localStorage.setItem('gq_auth_token', `mock-token-${newUser.id}`);
-        return newUser;
+      },
+
+      verifyEmail: async (otp) => {
+        const pending = get().pendingVerification;
+        if (!pending?.citizenId) {
+          throw new Error('No pending verification. Please register or log in again.');
+        }
+        try {
+          const { user, accessToken, refreshToken } = await authService.verifyEmailOtp({
+            citizenId: pending.citizenId,
+            otp,
+          });
+          const safeUser = normalizeUser(user);
+          set({
+            user: safeUser,
+            isAuthenticated: true,
+            accessToken,
+            refreshToken,
+            pendingVerification: null,
+          });
+          localStorage.setItem('gq_auth_token', accessToken);
+          return safeUser;
+        } catch (error) {
+          throw new Error(error.response?.data?.message || 'Verification failed');
+        }
+      },
+
+      resendOtp: async () => {
+        const pending = get().pendingVerification;
+        if (!pending?.email) {
+          throw new Error('No pending verification. Please register or log in again.');
+        }
+        try {
+          return await authService.resendOtp(pending.email);
+        } catch (error) {
+          throw new Error(error.response?.data?.message || 'Failed to resend code');
+        }
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false });
+        const { refreshToken } = get();
+        authService.logout(refreshToken).catch(() => {
+          // Ignore network errors on logout — client-side state is cleared regardless.
+        });
+        set({ user: null, isAuthenticated: false, accessToken: null, refreshToken: null });
         localStorage.removeItem('gq_auth_token');
       },
 
@@ -49,6 +119,13 @@ export const useAuthStore = create(
     }),
     {
       name: 'gq_auth_storage',
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        pendingVerification: state.pendingVerification,
+      }),
     }
   )
 );
