@@ -8,9 +8,14 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+
 dist
 dist-ssr
 *.local
+
+# Environment variables (Vite env vars can include API endpoints/keys —
+# never commit real values, only document them in README)
+.env
 
 # Editor directories and files
 .vscode/*

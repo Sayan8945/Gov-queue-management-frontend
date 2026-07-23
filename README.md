@@ -24,20 +24,28 @@ backend with minimal changes (see `TODO(backend)` comments throughout the codeba
 
 ```bash
 npm install
+# create a .env file (see "Environment Variables" below)
 npm run dev
 ```
 
 Open http://localhost:5173
 
-## Demo Accounts
+Citizens self-register from `/register` and verify via emailed OTP before
+first login. Staff/admin accounts are created via the backend's seed script
+(see `Server/README.md`).
 
-| Role    | Email                | Password    |
-|---------|----------------------|-------------|
-| Citizen | citizen@example.com  | citizen123  |
-| Staff   | staff@example.com    | staff123    |
-| Admin   | admin@example.com    | admin123    |
+## Environment Variables
 
-Citizens can also self-register from `/register`.
+Create a `.env` file in `client/` with:
+
+```text
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+In production (e.g. Vercel), set these in the platform's project environment
+variable settings, pointing at your deployed backend's URL — `.env` is
+gitignored and never committed.
 
 ## Key Routes
 
@@ -89,12 +97,34 @@ Search the codebase for `TODO(backend)` to find every seam intended for replacem
 - `src/store/authStore.js` — simulated auth to replace with JWT/session-based auth
 - `src/store/queueStore.js` — in-memory queue mutations to replace with API calls + socket events
 
-Copy `.env.example` to `.env` and populate `VITE_API_BASE_URL` / `VITE_SOCKET_URL` once the backend
-exists.
+See "Environment Variables" above for `VITE_API_BASE_URL` / `VITE_SOCKET_URL`.
+
+## Deployment (Vercel)
+
+This is a static Vite/React SPA — a good fit for Vercel as-is.
+
+- **Framework preset**: Vite
+- **Root directory**: `client`
+- **Build command**: `npm run build`
+- **Output directory**: `dist`
+- **Environment variables**: set `VITE_API_BASE_URL` and `VITE_SOCKET_URL` in
+  the Vercel project settings, pointing at your deployed backend (e.g. Render)
+
+`vercel.json` (in this directory) handles:
+
+- SPA rewrites — all routes fall back to `index.html` so React Router's
+  client-side routing works on refresh/direct navigation
+- Security headers (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`)
+- Long-term immutable caching for hashed static assets under `/assets/`
+
+The backend (Express + Socket.IO + cron jobs) cannot run on Vercel's
+serverless functions — see `Server/README.md` for its deployment path
+(Render/Railway/Fly.io/Docker).
 
 ## Folder Structure
 
-```
+```text
 src/
 ├── assets/
 ├── components/       # ui/, shared/, citizen/, staff/ component groups
