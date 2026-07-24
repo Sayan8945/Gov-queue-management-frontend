@@ -121,6 +121,9 @@ export default function VerifyEmailPage() {
                   {pendingVerification.email}
                 </span>
               </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                Can&apos;t find it? Check your spam or junk folder.
+              </p>
             </div>
 
             <OtpInput

@@ -50,7 +50,19 @@ export const useAuthStore = create(
           if (details?.verified === false) {
             set({ pendingVerification: { citizenId: details.citizenId, email: details.email } });
           }
-          throw new Error(error.response?.data?.message || 'Invalid email or password');
+          // No response at all means the request never reached the server
+          // (timeout, network drop, or the cold-start retries in httpClient
+          // were exhausted) — preserve that distinction so the UI can show
+          // a "server unreachable, try again" message instead of a generic
+          // credentials error.
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Invalid email or password'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
         }
       },
 
@@ -65,7 +77,14 @@ export const useAuthStore = create(
           set({ pendingVerification: { citizenId: result.citizenId, email: result.email } });
           return result;
         } catch (error) {
-          throw new Error(error.response?.data?.message || 'Registration failed');
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Registration failed'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
         }
       },
 
@@ -90,7 +109,14 @@ export const useAuthStore = create(
           localStorage.setItem('gq_auth_token', accessToken);
           return safeUser;
         } catch (error) {
-          throw new Error(error.response?.data?.message || 'Verification failed');
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Verification failed'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
         }
       },
 
@@ -102,7 +128,14 @@ export const useAuthStore = create(
         try {
           return await authService.resendOtp(pending.email);
         } catch (error) {
-          throw new Error(error.response?.data?.message || 'Failed to resend code');
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Failed to resend code'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
         }
       },
 

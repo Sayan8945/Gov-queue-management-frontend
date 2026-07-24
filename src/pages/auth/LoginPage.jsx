@@ -36,6 +36,10 @@ export default function LoginPage() {
       const redirectTo = location.state?.from?.pathname || ROLE_HOME_ROUTE[user.role] || '/';
       navigate(redirectTo, { replace: true });
     } catch (error) {
+      if (error.isNetworkFailure) {
+        toast.error(error.message);
+        return;
+      }
       if (error.message?.toLowerCase().includes('verify your email')) {
         toast.error('Please verify your email to continue');
         navigate('/verify-email', { replace: true });

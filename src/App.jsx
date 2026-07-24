@@ -5,6 +5,7 @@ import { queryClient } from '@/lib/queryClient';
 import AppRouter from '@/routes/AppRouter';
 import { useUiStore } from '@/store/uiStore';
 import { useQueueStore } from '@/store/queueStore';
+import ServerWakingBanner from '@/components/shared/ServerWakingBanner';
 
 function App() {
   const theme = useUiStore((s) => s.theme);
@@ -24,6 +25,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ServerWakingBanner />
       <AppRouter />
       <Toaster
         position="top-right"
