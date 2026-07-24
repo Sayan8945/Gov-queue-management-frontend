@@ -115,13 +115,13 @@ export default function VerifyEmailPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
                 Verify Your Email
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-m text-gray-500 dark:text-gray-400">
                 Enter the 6-digit OTP sent to{' '}
                 <span className="font-medium text-gray-700 dark:text-gray-300">
                   {pendingVerification.email}
                 </span>
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">
+              <p className="text-sm text-gray-800 dark:text-gray-300">
                 Can&apos;t find it? Check your spam or junk folder.
               </p>
             </div>
