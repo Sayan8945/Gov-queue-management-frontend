@@ -7,6 +7,9 @@ import AuthLayout from '@/layouts/AuthLayout';
 import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
 import VerifyEmailPage from '@/pages/auth/VerifyEmailPage';
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
+import VerifyResetOtpPage from '@/pages/auth/VerifyResetOtpPage';
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 
 import CitizenLayout from '@/layouts/CitizenLayout';
 import CitizenHomePage from '@/pages/citizen/CitizenHomePage';
@@ -48,6 +51,9 @@ const router = createBrowserRouter([
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
       { path: '/verify-email', element: <VerifyEmailPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/verify-reset-otp', element: <VerifyResetOtpPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
     ],
   },
 

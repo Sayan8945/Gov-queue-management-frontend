@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import Input from '@/components/ui/Input';
+import PasswordInput from '@/components/ui/PasswordInput';
 import Button from '@/components/ui/Button';
 
 const schema = z
@@ -32,8 +33,11 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({ resolver: zodResolver(schema) });
+
+  const passwordValue = watch('password');
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -84,17 +88,17 @@ export default function RegisterPage() {
           error={errors.mobileNumber?.message}
           {...register('mobileNumber')}
         />
-        <Input
+        <PasswordInput
           label="Password"
-          type="password"
           autoComplete="new-password"
           required
+          showStrength
+          value={passwordValue}
           error={errors.password?.message}
           {...register('password')}
         />
-        <Input
+        <PasswordInput
           label="Confirm password"
-          type="password"
           autoComplete="new-password"
           required
           error={errors.confirmPassword?.message}

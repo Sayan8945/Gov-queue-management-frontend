@@ -139,12 +139,140 @@ export const useAuthStore = create(
         }
       },
 
+      // Set while a password-reset OTP has been requested but not yet
+      // verified/consumed, so /reset-password can be reloaded without
+      // losing the email context.
+      pendingPasswordReset: null, // { email }
+
+      // Demo Mode session info, used by the DemoBanner/DemoSessionBadge to
+      // show a countdown and label. Not a real distinct auth mechanism —
+      // the user is authenticated with a completely normal JWT; this is
+      // just UI metadata about when that demo session started.
+      demoSession: null, // { role, startedAt }
+
+      requestPasswordReset: async (email) => {
+        try {
+          const result = await authService.forgotPassword(email);
+          set({ pendingPasswordReset: { email } });
+          return result;
+        } catch (error) {
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Failed to send reset code'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
+        }
+      },
+
+      verifyPasswordResetOtp: async (otp) => {
+        const pending = get().pendingPasswordReset;
+        if (!pending?.email) {
+          throw new Error('No pending password reset. Please start again.');
+        }
+        try {
+          const result = await authService.verifyResetOtp({ email: pending.email, otp });
+          // Remember the verified code so ResetPasswordPage can submit it
+          // together with the new password without asking the user to
+          // re-enter it. The backend re-verifies it anyway on actual reset.
+          set({ pendingPasswordReset: { ...pending, verifiedOtp: otp } });
+          return result;
+        } catch (error) {
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Incorrect verification code'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
+        }
+      },
+
+      completePasswordReset: async (password) => {
+        const pending = get().pendingPasswordReset;
+        if (!pending?.email || !pending?.verifiedOtp) {
+          throw new Error('No verified reset code found. Please start again.');
+        }
+        try {
+          const result = await authService.resetPassword({
+            email: pending.email,
+            otp: pending.verifiedOtp,
+            password,
+          });
+          set({ pendingPasswordReset: null });
+          return result;
+        } catch (error) {
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Failed to reset password'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
+        }
+      },
+
+      loginDemo: async (role) => {
+        try {
+          const result = await authService.demoLogin(role);
+
+          if (role === 'display') {
+            // No account/session — public/unauthenticated view.
+            return { role: 'display' };
+          }
+
+          const safeUser = normalizeUser(result.user);
+          set({
+            user: safeUser,
+            isAuthenticated: true,
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+            pendingVerification: null,
+            demoSession: { role, startedAt: Date.now() },
+          });
+          localStorage.setItem('gq_auth_token', result.accessToken);
+          return safeUser;
+        } catch (error) {
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Failed to start demo session'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
+        }
+      },
+
+      resendPasswordResetOtp: async () => {
+        const pending = get().pendingPasswordReset;
+        if (!pending?.email) {
+          throw new Error('No pending password reset. Please start again.');
+        }
+        try {
+          return await authService.forgotPassword(pending.email);
+        } catch (error) {
+          const isNetworkFailure = !error.response;
+          const wrapped = new Error(
+            isNetworkFailure
+              ? 'Could not reach the server. Please wait a moment and try again.'
+              : error.response?.data?.message || 'Failed to resend code'
+          );
+          wrapped.isNetworkFailure = isNetworkFailure;
+          throw wrapped;
+        }
+      },
+
       logout: () => {
         const { refreshToken } = get();
         authService.logout(refreshToken).catch(() => {
           // Ignore network errors on logout — client-side state is cleared regardless.
         });
-        set({ user: null, isAuthenticated: false, accessToken: null, refreshToken: null });
+        set({ user: null, isAuthenticated: false, accessToken: null, refreshToken: null, demoSession: null });
         localStorage.removeItem('gq_auth_token');
       },
 
@@ -158,6 +286,8 @@ export const useAuthStore = create(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         pendingVerification: state.pendingVerification,
+        pendingPasswordReset: state.pendingPasswordReset,
+        demoSession: state.demoSession,
       }),
     }
   )

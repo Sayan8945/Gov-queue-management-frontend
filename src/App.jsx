@@ -6,6 +6,8 @@ import AppRouter from '@/routes/AppRouter';
 import { useUiStore } from '@/store/uiStore';
 import { useQueueStore } from '@/store/queueStore';
 import ServerWakingBanner from '@/components/shared/ServerWakingBanner';
+import DemoModeBanner from '@/components/shared/DemoModeBanner';
+import DemoSessionBadge from '@/components/shared/DemoSessionBadge';
 
 function App() {
   const theme = useUiStore((s) => s.theme);
@@ -26,6 +28,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ServerWakingBanner />
+      <DemoModeBanner />
+      <DemoSessionBadge />
       <AppRouter />
       <Toaster
         position="top-right"
