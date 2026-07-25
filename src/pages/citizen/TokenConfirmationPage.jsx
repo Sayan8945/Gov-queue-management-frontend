@@ -5,21 +5,22 @@ import PageHeader from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import TokenQrCode from '@/components/citizen/TokenQrCode';
-import { useQueueStore } from '@/store/queueStore';
-import { getDepartmentById, getServiceById } from '@/store/catalogStore';
+import { useToken } from '@/hooks/useTokens';
 import { formatDateTime } from '@/utils/dateHelpers';
 
 export default function TokenConfirmationPage() {
   const { tokenId } = useParams();
-  const token = useQueueStore((s) => s.getTokenById(tokenId));
+  const { data: token, isLoading } = useToken(tokenId);
+
+  if (isLoading) {
+    return <SkeletonCard />;
+  }
 
   if (!token) {
     return <EmptyState title="Token not found" description="This booking could not be located." />;
   }
-
-  const department = getDepartmentById(token.departmentId);
-  const service = getServiceById(token.serviceId);
 
   return (
     <div className="mx-auto max-w-lg">
@@ -41,14 +42,15 @@ export default function TokenConfirmationPage() {
             </div>
 
             <dl className="mt-6 grid w-full grid-cols-2 gap-4 text-left">
-              <Info label="Department" value={department?.name} />
-              <Info label="Service" value={service?.name} />
-              <Info label="Scheduled" value={formatDateTime(token.slot)} />
+              <Info label="Department" value={token.departmentId?.departmentName} />
+              <Info label="Service" value={token.serviceId?.serviceName} />
+              <Info label="Queue Position" value={token.queuePosition ?? '-'} />
+              <Info label="Est. Wait" value={`${token.estimatedWaitTime ?? 0} min`} />
               <Info label="Booked on" value={formatDateTime(token.createdAt)} />
             </dl>
 
             <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row">
-              <Link to={`/citizen/tokens/${token.id}`} className="flex-1">
+              <Link to={`/citizen/tokens/${token._id}`} className="flex-1">
                 <Button fullWidth variant="secondary">
                   Track Queue Position
                 </Button>

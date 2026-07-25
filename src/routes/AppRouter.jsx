@@ -25,12 +25,14 @@ import ProfilePage from '@/pages/citizen/ProfilePage';
 import StaffLayout from '@/layouts/StaffLayout';
 import StaffDashboardPage from '@/pages/staff/StaffDashboardPage';
 import StaffQueueMonitorPage from '@/pages/staff/StaffQueueMonitorPage';
+import StaffDepartmentsPage from '@/pages/staff/StaffDepartmentsPage';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
 import DepartmentsPage from '@/pages/admin/DepartmentsPage';
 import ServicesPage from '@/pages/admin/ServicesPage';
 import CountersPage from '@/pages/admin/CountersPage';
+import StaffPage from '@/pages/admin/StaffPage';
 import TokenLimitsPage from '@/pages/admin/TokenLimitsPage';
 import PriorityQueuePage from '@/pages/admin/PriorityQueuePage';
 import AnalyticsPage from '@/pages/admin/AnalyticsPage';
@@ -85,6 +87,7 @@ const router = createBrowserRouter([
         children: [
           { path: '/staff/dashboard', element: <StaffDashboardPage /> },
           { path: '/staff/queue', element: <StaffQueueMonitorPage /> },
+          { path: '/staff/departments', element: <StaffDepartmentsPage /> },
         ],
       },
     ],
@@ -100,6 +103,7 @@ const router = createBrowserRouter([
           { path: '/admin/departments', element: <DepartmentsPage /> },
           { path: '/admin/services', element: <ServicesPage /> },
           { path: '/admin/counters', element: <CountersPage /> },
+          { path: '/admin/staff', element: <StaffPage /> },
           { path: '/admin/token-limits', element: <TokenLimitsPage /> },
           { path: '/admin/priority-queue', element: <PriorityQueuePage /> },
           { path: '/admin/analytics', element: <AnalyticsPage /> },

@@ -8,31 +8,24 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import DepartmentCard from '@/components/citizen/DepartmentCard';
 import ServiceCard from '@/components/citizen/ServiceCard';
-import SlotPicker from '@/components/citizen/SlotPicker';
-import { useDepartments } from '@/hooks/useDepartments';
+import { useDepartments, useServicesByDepartment, useServiceAvailability } from '@/hooks/useDepartments';
 import { useCreateToken } from '@/hooks/useTokens';
-import { useAuth } from '@/hooks/useAuth';
-import { useQueueStore } from '@/store/queueStore';
 import { PRIORITY_LEVELS, PRIORITY_LABELS } from '@/constants/tokenStatus';
 
-const STEPS = ['Department', 'Service', 'Schedule', 'Review'];
+const STEPS = ['Department', 'Service', 'Priority', 'Review'];
 
 export default function BookTokenPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: departments, isLoading } = useDepartments();
+  const { data: departments, isLoading: isLoadingDepartments } = useDepartments();
   const createTokenMutation = useCreateToken();
 
   const [step, setStep] = useState(0);
   const [department, setDepartment] = useState(null);
   const [service, setService] = useState(null);
-  const [priority, setPriority] = useState(PRIORITY_LEVELS.NORMAL);
-  const [slot, setSlot] = useState(null);
+  const [priorityType, setPriorityType] = useState(PRIORITY_LEVELS.NORMAL);
 
-  const today = new Date();
-  const remainingCapacity = useQueueStore((s) =>
-    department ? s.getRemainingCapacity(department.id) : null
-  );
+  const { data: services, isLoading: isLoadingServices } = useServicesByDepartment(department?._id);
+  const { data: availability } = useServiceAvailability(service?._id);
 
   const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
@@ -40,21 +33,18 @@ export default function BookTokenPage() {
   const canProceed = {
     0: Boolean(department),
     1: Boolean(service),
-    2: Boolean(slot) && remainingCapacity !== 0,
+    2: !availability || !availability.isFull,
     3: true,
   }[step];
 
   const handleConfirm = async () => {
     try {
       const token = await createTokenMutation.mutateAsync({
-        departmentId: department.id,
-        serviceId: service.id,
-        citizenId: user.id,
-        citizenName: user.name,
-        priority,
-        slot,
+        departmentId: department._id,
+        serviceId: service._id,
+        priorityType,
       });
-      navigate(`/citizen/tokens/${token.id}/confirmation`);
+      navigate(`/citizen/tokens/${token._id}/confirmation`);
     } catch {
       // Error toast is already shown by useCreateToken's onError handler.
     }
@@ -74,7 +64,7 @@ export default function BookTokenPage() {
         <CardBody>
           {step === 0 && (
             <StepBlock title="Select a department">
-              {isLoading ? (
+              {isLoadingDepartments ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <SkeletonCard />
                   <SkeletonCard />
@@ -83,9 +73,9 @@ export default function BookTokenPage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   {departments?.map((dept) => (
                     <DepartmentCard
-                      key={dept.id}
+                      key={dept._id}
                       department={dept}
-                      selected={department?.id === dept.id}
+                      selected={department?._id === dept._id}
                       onSelect={(d) => {
                         setDepartment(d);
                         setService(null);
@@ -98,38 +88,45 @@ export default function BookTokenPage() {
           )}
 
           {step === 1 && department && (
-            <StepBlock title={`Select a service in ${department.name}`}>
-              <div className="space-y-3">
-                {department.services.map((svc) => (
-                  <ServiceCard
-                    key={svc.id}
-                    service={svc}
-                    selected={service?.id === svc.id}
-                    onSelect={setService}
-                  />
-                ))}
-              </div>
+            <StepBlock title={`Select a service in ${department.departmentName}`}>
+              {isLoadingServices ? (
+                <div className="space-y-3">
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {services?.map((svc) => (
+                    <ServiceCard
+                      key={svc._id}
+                      service={svc}
+                      selected={service?._id === svc._id}
+                      onSelect={setService}
+                    />
+                  ))}
+                </div>
+              )}
             </StepBlock>
           )}
 
           {step === 2 && (
-            <StepBlock title="Choose a time slot">
-              {remainingCapacity !== null && (
+            <StepBlock title="Confirm priority category">
+              {availability && (
                 <p
                   className={`mb-4 text-sm font-medium ${
-                    remainingCapacity === 0 ? 'text-danger-600' : 'text-gray-500 dark:text-gray-400'
+                    availability.isFull ? 'text-danger-600' : 'text-gray-500 dark:text-gray-400'
                   }`}
                 >
-                  {remainingCapacity === 0
-                    ? "Today's token limit for this department has been reached."
-                    : `${remainingCapacity} tokens remaining today for this department.`}
+                  {availability.isFull
+                    ? "Today's token limit for this service has been reached. Please try again tomorrow."
+                    : `${availability.remaining} of ${availability.dailyTokenLimit} tokens remaining today for this service.`}
                 </p>
               )}
-              <div className="mb-5 max-w-xs">
+              <div className="max-w-xs">
                 <Select
                   label="Priority category"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
+                  value={priorityType}
+                  onChange={(e) => setPriorityType(e.target.value)}
                   hint="Helps us serve those with urgent needs fairly"
                 >
                   {Object.values(PRIORITY_LEVELS).map((level) => (
@@ -139,28 +136,21 @@ export default function BookTokenPage() {
                   ))}
                 </Select>
               </div>
-              <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-200">
-                Available slots today
+              <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
+                This is a live queue system — there are no fixed appointment time slots. Your token
+                joins the real-time queue immediately and your position/estimated wait update as the
+                queue moves.
               </p>
-              <SlotPicker
-                date={today}
-                selectedSlot={slot}
-                onSelect={setSlot}
-                operatingHours={department?.operatingHours}
-              />
             </StepBlock>
           )}
 
           {step === 3 && (
             <StepBlock title="Review & confirm">
               <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <ReviewItem label="Department" value={department?.name} />
-                <ReviewItem label="Service" value={service?.name} />
-                <ReviewItem label="Priority" value={PRIORITY_LABELS[priority]} />
-                <ReviewItem
-                  label="Slot"
-                  value={slot ? new Date(slot).toLocaleString() : '-'}
-                />
+                <ReviewItem label="Department" value={department?.departmentName} />
+                <ReviewItem label="Service" value={service?.serviceName} />
+                <ReviewItem label="Priority" value={PRIORITY_LABELS[priorityType]} />
+                <ReviewItem label="Avg. Service Duration" value={`${service?.averageServiceDuration} min`} />
               </dl>
             </StepBlock>
           )}

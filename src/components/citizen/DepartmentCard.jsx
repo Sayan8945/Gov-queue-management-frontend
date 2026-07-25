@@ -1,8 +1,7 @@
-import * as Icons from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 export default function DepartmentCard({ department, selected, onSelect }) {
-  const Icon = Icons[department.icon] || Icons.Building2;
   return (
     <button
       type="button"
@@ -22,10 +21,10 @@ export default function DepartmentCard({ department, selected, onSelect }) {
           selected ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
         )}
       >
-        <Icon className="h-5 w-5" aria-hidden="true" />
+        <Building2 className="h-5 w-5" aria-hidden="true" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{department.name}</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{department.departmentName}</p>
         <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{department.description}</p>
       </div>
     </button>

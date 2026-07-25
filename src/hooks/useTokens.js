@@ -4,15 +4,34 @@ import {
   createTokenRequest,
   cancelTokenRequest,
   rescheduleTokenRequest,
-  fetchTokensByCitizen,
+  fetchMyTokens,
+  fetchTokenById,
+  fetchQueueStatus,
 } from '@/services/tokenService';
 
-export function useCitizenTokens(citizenId) {
+export function useMyTokens() {
   return useQuery({
-    queryKey: ['tokens', 'citizen', citizenId],
-    queryFn: () => fetchTokensByCitizen(citizenId),
-    enabled: Boolean(citizenId),
-    refetchInterval: 5000,
+    queryKey: ['tokens', 'my-tokens'],
+    queryFn: fetchMyTokens,
+    refetchInterval: 10000,
+  });
+}
+
+export function useToken(tokenId) {
+  return useQuery({
+    queryKey: ['tokens', tokenId],
+    queryFn: () => fetchTokenById(tokenId),
+    enabled: Boolean(tokenId),
+    refetchInterval: 10000,
+  });
+}
+
+export function useQueueStatus(tokenId) {
+  return useQuery({
+    queryKey: ['queue', 'status', tokenId],
+    queryFn: () => fetchQueueStatus(tokenId),
+    enabled: Boolean(tokenId),
+    refetchInterval: 10000,
   });
 }
 
@@ -21,11 +40,11 @@ export function useCreateToken() {
   return useMutation({
     mutationFn: createTokenRequest,
     onSuccess: (token) => {
-      queryClient.invalidateQueries({ queryKey: ['tokens', 'citizen', token.citizenId] });
+      queryClient.invalidateQueries({ queryKey: ['tokens'] });
       toast.success(`Token ${token.tokenNumber} booked successfully`);
     },
     onError: (error) => {
-      toast.error(error?.message || 'Failed to create token');
+      toast.error(error?.response?.data?.message || 'Failed to create token');
     },
   });
 }
@@ -39,7 +58,7 @@ export function useCancelToken() {
       toast.success('Token cancelled');
     },
     onError: (error) => {
-      toast.error(error?.message || 'Failed to cancel token');
+      toast.error(error?.response?.data?.message || 'Failed to cancel token');
     },
   });
 }
@@ -47,13 +66,13 @@ export function useCancelToken() {
 export function useRescheduleToken() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tokenId, newSlot }) => rescheduleTokenRequest(tokenId, newSlot),
+    mutationFn: ({ tokenId, bookingDate }) => rescheduleTokenRequest(tokenId, bookingDate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       toast.success('Token rescheduled');
     },
     onError: (error) => {
-      toast.error(error?.message || 'Failed to reschedule token');
+      toast.error(error?.response?.data?.message || 'Failed to reschedule token');
     },
   });
 }

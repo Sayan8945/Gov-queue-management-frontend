@@ -6,12 +6,23 @@ import { cn } from '@/utils/cn';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md', footer }) {
   const closeButtonRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
+  // Focus the close button once when the modal opens. This must NOT depend
+  // on `onClose` — callers typically pass an inline arrow function that gets
+  // a new identity on every re-render (e.g. every keystroke in a form field
+  // inside the modal), which would re-run this effect and steal focus back
+  // to the close button while the user is typing.
   useEffect(() => {
     if (!isOpen) return;
     closeButtonRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose?.();
+      if (e.key === 'Escape') onCloseRef.current?.();
     };
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
@@ -19,7 +30,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', f
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   const sizeClass = {
     sm: 'max-w-sm',

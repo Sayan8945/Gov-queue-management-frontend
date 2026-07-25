@@ -7,17 +7,17 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import TokenCard from '@/components/citizen/TokenCard';
 import { useAuth } from '@/hooks/useAuth';
-import { useCitizenTokens, useCancelToken } from '@/hooks/useTokens';
+import { useMyTokens, useCancelToken } from '@/hooks/useTokens';
 import { TOKEN_STATUS } from '@/constants/tokenStatus';
+
+const ACTIVE_STATUSES = [TOKEN_STATUS.WAITING, TOKEN_STATUS.APPROACHING, TOKEN_STATUS.CALLED, TOKEN_STATUS.IN_PROGRESS];
 
 export default function CitizenHomePage() {
   const { user } = useAuth();
-  const { data: tokens, isLoading } = useCitizenTokens(user?.id);
+  const { data: tokens, isLoading } = useMyTokens();
   const cancelMutation = useCancelToken();
 
-  const activeTokens = (tokens || []).filter(
-    (t) => t.status === TOKEN_STATUS.WAITING || t.status === TOKEN_STATUS.CALLED || t.status === TOKEN_STATUS.IN_PROGRESS
-  );
+  const activeTokens = (tokens || []).filter((t) => ACTIVE_STATUSES.includes(t.status));
 
   return (
     <div>
@@ -57,7 +57,7 @@ export default function CitizenHomePage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {activeTokens.map((token) => (
-            <TokenCard key={token.id} token={token} onCancel={(id) => cancelMutation.mutate(id)} />
+            <TokenCard key={token._id} token={token} onCancel={(id) => cancelMutation.mutate(id)} />
           ))}
         </div>
       )}
