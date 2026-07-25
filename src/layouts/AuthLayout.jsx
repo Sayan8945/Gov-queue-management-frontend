@@ -4,12 +4,15 @@ import { Landmark, ArrowLeft } from 'lucide-react';
 export default function AuthLayout() {
   const navigate = useNavigate();
 
+  // Always return to the landing page rather than navigate(-1). Relying on
+  // window.history.length is unreliable — it counts every entry in the
+  // browser tab's session, including pages visited before this app was
+  // ever loaded (e.g. a search result or an external link), so navigate(-1)
+  // can pop the user out of the app entirely instead of going anywhere
+  // useful. Auth screens have no meaningful "back" destination other than
+  // the landing page, so this is deterministic and always works.
   const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/');
-    }
+    navigate('/');
   };
 
   return (
