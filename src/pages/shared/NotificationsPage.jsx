@@ -23,7 +23,7 @@ export default function NotificationsPage() {
     <div>
       <PageHeader
         title="Notification Center"
-        description="Confirmations, approaching-turn alerts, and delay notices sent via SMS/Email."
+        description="Every action and alert sent to your account, including anything delivered via SMS/Email."
         breadcrumbItems={[{ label: 'Notifications' }]}
         actions={
           notifications.length > 0 && (

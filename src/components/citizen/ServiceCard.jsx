@@ -15,9 +15,9 @@ export default function ServiceCard({ service, selected, onSelect }) {
           : 'border-gray-200 bg-white hover:border-primary-300 dark:border-gray-700 dark:bg-gray-800'
       )}
     >
-      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{service.name}</span>
+      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{service.serviceName}</span>
       <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-        <Clock className="h-3.5 w-3.5" /> ~{service.durationMins} min
+        <Clock className="h-3.5 w-3.5" /> ~{service.averageServiceDuration} min
       </span>
     </button>
   );
