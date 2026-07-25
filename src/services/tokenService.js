@@ -1,21 +1,23 @@
-// Mock token API that wraps the queueStore so React Query can cache/invalidate
-// consistently. The store remains the single source of truth for live state.
-// TODO(backend): swap these for real REST + Socket.IO event driven calls.
+// Real token/queue API — backed entirely by MongoDB via the Express
+// backend. No mock data, no frontend simulation.
 
-import { useQueueStore } from '@/store/queueStore';
-import { simulateRequest } from './mockApiClient';
+import httpClient from './httpClient';
 
-export const createTokenRequest = (payload) =>
-  simulateRequest(null).then(() => useQueueStore.getState().createToken(payload));
+export const createTokenRequest = ({ departmentId, serviceId, priorityType }) =>
+  httpClient.post('/tokens', { departmentId, serviceId, priorityType }).then((r) => r.data.data);
 
 export const cancelTokenRequest = (tokenId) =>
-  simulateRequest(null).then(() => useQueueStore.getState().cancelToken(tokenId));
+  httpClient.put(`/tokens/${tokenId}/cancel`).then((r) => r.data.data);
 
-export const rescheduleTokenRequest = (tokenId, newSlot) =>
-  simulateRequest(null).then(() => useQueueStore.getState().rescheduleToken(tokenId, newSlot));
+export const rescheduleTokenRequest = (tokenId, bookingDate) =>
+  httpClient.put(`/tokens/${tokenId}/reschedule`, { bookingDate }).then((r) => r.data.data);
 
-export const fetchTokensByCitizen = (citizenId) =>
-  simulateRequest(null).then(() => useQueueStore.getState().getTokensByCitizen(citizenId));
+export const fetchMyTokens = () => httpClient.get('/tokens/my-tokens').then((r) => r.data.data);
 
-export const fetchTokenById = (tokenId) =>
-  simulateRequest(null).then(() => useQueueStore.getState().getTokenById(tokenId));
+export const fetchTokenById = (tokenId) => httpClient.get(`/tokens/${tokenId}`).then((r) => r.data.data);
+
+export const fetchQueueStatus = (tokenId) =>
+  httpClient.get(`/queue/status/${tokenId}`).then((r) => r.data.data);
+
+export const fetchDepartmentQueue = (departmentId) =>
+  httpClient.get(`/queue/department/${departmentId}`).then((r) => r.data.data);

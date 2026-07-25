@@ -4,28 +4,34 @@ import { Toaster } from 'react-hot-toast';
 import { queryClient } from '@/lib/queryClient';
 import AppRouter from '@/routes/AppRouter';
 import { useUiStore } from '@/store/uiStore';
-import { useQueueStore } from '@/store/queueStore';
+import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import ServerWakingBanner from '@/components/shared/ServerWakingBanner';
+import DemoModeBanner from '@/components/shared/DemoModeBanner';
+import DemoSessionBadge from '@/components/shared/DemoSessionBadge';
+
+// Connects the authenticated Socket.IO namespace (citizen or staff/admin)
+// for the logged-in user and keeps React Query caches in sync with real
+// backend events — the production replacement for the old mock timer.
+// Must render as a CHILD of QueryClientProvider (not a sibling call in App)
+// since useQueryClient() only sees context from an ancestor provider.
+function RealtimeSync() {
+  useRealtimeSync();
+  return null;
+}
 
 function App() {
   const theme = useUiStore((s) => s.theme);
-  const startAutoSimulation = useQueueStore((s) => s.startAutoSimulation);
-  const stopAutoSimulation = useQueueStore((s) => s.stopAutoSimulation);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  useEffect(() => {
-    // Drives the frontend-only real-time simulation (walk-in tokens appearing
-    // over time). TODO(backend): remove once server pushes real queue events.
-    startAutoSimulation();
-    return () => stopAutoSimulation();
-  }, [startAutoSimulation, stopAutoSimulation]);
-
   return (
     <QueryClientProvider client={queryClient}>
+      <RealtimeSync />
       <ServerWakingBanner />
+      <DemoModeBanner />
+      <DemoSessionBadge />
       <AppRouter />
       <Toaster
         position="top-right"

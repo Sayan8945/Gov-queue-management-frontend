@@ -4,11 +4,13 @@ import { z } from 'zod';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
+import { Rocket } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { ROLE_HOME_ROUTE } from '@/constants/roles';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
+import DemoModeModal from '@/components/auth/DemoModeModal';
 
 const schema = z.object({
   identifier: z.string().min(1, 'Email is required'),
@@ -21,6 +23,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   const {
     register,
@@ -81,6 +84,11 @@ export default function LoginPage() {
           error={errors.password?.message}
           {...register('password')}
         />
+        <div className="flex justify-end">
+          <Link to="/forgot-password" className="text-sm font-medium text-primary-600 hover:text-primary-700">
+            Forgot Password?
+          </Link>
+        </div>
         <Button type="submit" fullWidth isLoading={isSubmitting}>
           Sign in
         </Button>
@@ -92,6 +100,27 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
+
+      <div className="mt-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          OR
+        </span>
+        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        fullWidth
+        icon={Rocket}
+        className="mt-4"
+        onClick={() => setIsDemoModalOpen(true)}
+      >
+        Explore Demo
+      </Button>
+
+      <DemoModeModal isOpen={isDemoModalOpen} onClose={() => setIsDemoModalOpen(false)} />
     </div>
   );
 }

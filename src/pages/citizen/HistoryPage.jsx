@@ -4,15 +4,12 @@ import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Card } from '@/components/ui/Card';
-import { useAuth } from '@/hooks/useAuth';
-import { useCitizenTokens } from '@/hooks/useTokens';
-import { getDepartmentById, getServiceById } from '@/store/catalogStore';
+import { useMyTokens } from '@/hooks/useTokens';
 import { formatDateTime } from '@/utils/dateHelpers';
 import { TOKEN_STATUS } from '@/constants/tokenStatus';
 
 export default function HistoryPage() {
-  const { user } = useAuth();
-  const { data: tokens, isLoading } = useCitizenTokens(user?.id);
+  const { data: tokens, isLoading } = useMyTokens();
 
   const pastTokens = (tokens || []).filter((t) =>
     [TOKEN_STATUS.COMPLETED, TOKEN_STATUS.CANCELLED, TOKEN_STATUS.SKIPPED, TOKEN_STATUS.NO_SHOW].includes(
@@ -46,25 +43,23 @@ export default function HistoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {pastTokens.map((token) => {
-                  const dept = getDepartmentById(token.departmentId);
-                  const service = getServiceById(token.serviceId);
-                  return (
-                    <tr key={token.id}>
-                      <td className="px-5 py-3 font-medium text-gray-900 dark:text-gray-100">
-                        {token.tokenNumber}
-                      </td>
-                      <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{dept?.name}</td>
-                      <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{service?.name}</td>
-                      <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
-                        {formatDateTime(token.completedAt || token.createdAt)}
-                      </td>
-                      <td className="px-5 py-3">
-                        <StatusBadge status={token.status} />
-                      </td>
-                    </tr>
-                  );
-                })}
+                {pastTokens.map((token) => (
+                  <tr key={token._id}>
+                    <td className="px-5 py-3 font-medium text-gray-900 dark:text-gray-100">
+                      {token.tokenNumber}
+                    </td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
+                      {token.departmentId?.departmentName}
+                    </td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{token.serviceId?.serviceName}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
+                      {formatDateTime(token.completedAt || token.createdAt)}
+                    </td>
+                    <td className="px-5 py-3">
+                      <StatusBadge status={token.status} />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

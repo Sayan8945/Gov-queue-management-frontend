@@ -1,70 +1,76 @@
-import toast from 'react-hot-toast';
 import { Pause, Play } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import StatCard from '@/components/ui/StatCard';
 import Badge from '@/components/ui/Badge';
+import { SkeletonCard } from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import CurrentTokenPanel from '@/components/staff/CurrentTokenPanel';
 import QueueList from '@/components/staff/QueueList';
-import { useAuth } from '@/hooks/useAuth';
-import { useLiveQueue } from '@/hooks/useLiveQueue';
-import { useQueueStore } from '@/store/queueStore';
-import { getDepartmentById } from '@/store/catalogStore';
+import {
+  useStaffQueue,
+  useCallNext,
+  useStartService,
+  useCompleteService,
+  useSkipToken,
+  usePauseCounter,
+  useResumeCounter,
+} from '@/hooks/useStaffQueue';
 import { COUNTER_STATUS, TOKEN_STATUS } from '@/constants/tokenStatus';
 import { Users, Clock3, CheckCircle2, SkipForward } from 'lucide-react';
 
+// Every field here (counter, department, currentToken, waitingQueue, stats)
+// comes straight from MongoDB via GET /api/staff/current-queue — the
+// counter assignment is the Staff document's real `assignedCounter`, never
+// a frontend-guessed value.
 export default function StaffDashboardPage() {
-  const { user } = useAuth();
-  const counter = useQueueStore((s) => s.getCounterById(user?.counterId));
-  const department = counter ? getDepartmentById(counter.departmentId) : null;
+  const { data, isLoading } = useStaffQueue();
 
-  const { waitingQueue, stats } = useLiveQueue(department?.id);
-  const currentCounter = useQueueStore((s) => s.counters.find((c) => c.id === counter?.id));
-  const currentToken = useQueueStore((s) => s.getCurrentTokenForCounter(counter?.id));
+  const callNextMutation = useCallNext();
+  const startServiceMutation = useStartService();
+  const completeServiceMutation = useCompleteService();
+  const skipTokenMutation = useSkipToken();
+  const pauseCounterMutation = usePauseCounter();
+  const resumeCounterMutation = useResumeCounter();
 
-  const callNextToken = useQueueStore((s) => s.callNextToken);
-  const markInProgress = useQueueStore((s) => s.markInProgress);
-  const markCompleted = useQueueStore((s) => s.markCompleted);
-  const markSkipped = useQueueStore((s) => s.markSkipped);
-  const markNoShow = useQueueStore((s) => s.markNoShow);
-  const pauseCounter = useQueueStore((s) => s.pauseCounter);
-  const resumeCounter = useQueueStore((s) => s.resumeCounter);
+  if (isLoading) {
+    return <SkeletonCard />;
+  }
+
+  const { counter, department, currentToken, waitingQueue, stats } = data || {};
 
   if (!counter || !department) {
     return (
       <div>
         <PageHeader title="Counter Dashboard" />
-        <p className="text-sm text-gray-500">No counter is assigned to your account yet.</p>
+        <EmptyState
+          title="No counter assigned"
+          description="No counter is assigned to your account yet. Contact an administrator to get assigned to a counter."
+        />
       </div>
     );
   }
 
-  const isPaused = currentCounter?.status === COUNTER_STATUS.PAUSED;
-
-  const handleCallNext = () => {
-    const next = callNextToken(counter.id);
-    if (next) {
-      toast.success(`Called ${next.tokenNumber}`);
-    } else {
-      toast.error('No tokens waiting in queue');
-    }
-  };
+  const isPaused = counter.status === COUNTER_STATUS.BREAK;
+  const isActionPending =
+    callNextMutation.isPending ||
+    startServiceMutation.isPending ||
+    completeServiceMutation.isPending ||
+    skipTokenMutation.isPending;
 
   const handleTogglePause = () => {
     if (isPaused) {
-      resumeCounter(counter.id);
-      toast.success('Counter resumed');
+      resumeCounterMutation.mutate(counter._id);
     } else {
-      pauseCounter(counter.id);
-      toast.success('Counter paused');
+      pauseCounterMutation.mutate(counter._id);
     }
   };
 
   return (
     <div>
       <PageHeader
-        title={`Counter ${counter.number}`}
-        description={department.name}
+        title={`Counter ${counter.counterNumber}`}
+        description={department.departmentName}
         breadcrumbItems={[{ label: 'Dashboard' }]}
         actions={
           <div className="flex items-center gap-3">
@@ -73,6 +79,7 @@ export default function StaffDashboardPage() {
               variant={isPaused ? 'success' : 'outline'}
               icon={isPaused ? Play : Pause}
               onClick={handleTogglePause}
+              isLoading={pauseCounterMutation.isPending || resumeCounterMutation.isPending}
             >
               {isPaused ? 'Resume Counter' : 'Pause Counter'}
             </Button>
@@ -91,25 +98,13 @@ export default function StaffDashboardPage() {
         <CurrentTokenPanel
           token={currentToken}
           counterPaused={isPaused}
-          onCallNext={handleCallNext}
-          onStart={(id) => {
-            markInProgress(id);
-            toast.success('Service started');
-          }}
-          onComplete={(id) => {
-            markCompleted(id);
-            toast.success('Token marked completed');
-          }}
-          onSkip={(id) => {
-            markSkipped(id);
-            toast('Token skipped', { icon: '⏭️' });
-          }}
-          onNoShow={(id) => {
-            markNoShow(id);
-            toast('Token marked as no-show', { icon: '🚫' });
-          }}
+          isActionPending={isActionPending}
+          onCallNext={() => callNextMutation.mutate(counter._id)}
+          onStart={(id) => startServiceMutation.mutate(id)}
+          onComplete={(id) => completeServiceMutation.mutate(id)}
+          onSkip={(id) => skipTokenMutation.mutate({ tokenId: id })}
         />
-        <QueueList tokens={waitingQueue.filter((t) => t.status === TOKEN_STATUS.WAITING)} />
+        <QueueList tokens={(waitingQueue || []).filter((t) => t.status === TOKEN_STATUS.WAITING)} />
       </div>
     </div>
   );

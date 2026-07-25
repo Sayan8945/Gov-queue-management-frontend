@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ROLE_HOME_ROUTE } from '@/constants/roles';
 import OtpInput from '@/components/ui/OtpInput';
 import Button from '@/components/ui/Button';
+import { notifyEmailSent } from '@/utils/emailToast';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -57,8 +58,8 @@ export default function VerifyEmailPage() {
     setIsResending(true);
     setError('');
     try {
-      const result = await resendOtp();
-      toast.success(result.message || 'A new code has been sent to your email');
+      await resendOtp();
+      notifyEmailSent('A new code has been sent to your email.');
       setCooldown(RESEND_COOLDOWN_SECONDS);
       setOtp('');
     } catch (err) {

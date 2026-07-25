@@ -7,46 +7,70 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
 import EmptyState from '@/components/ui/EmptyState';
-import { useCatalogStore } from '@/store/catalogStore';
-import { offices } from '@/mock/offices';
+import { SkeletonCard } from '@/components/ui/Skeleton';
+import { useAdminDepartments, useCreateDepartment, useUpdateDepartment } from '@/hooks/useAdmin';
+
+const EMPTY_FORM = {
+  departmentName: '',
+  departmentCode: '',
+  officeLocation: '',
+  openingTime: '09:00',
+  closingTime: '17:00',
+  description: '',
+};
 
 export default function DepartmentsPage() {
-  const departments = useCatalogStore((s) => s.departments);
-  const addDepartment = useCatalogStore((s) => s.addDepartment);
-  const updateDepartment = useCatalogStore((s) => s.updateDepartment);
-  const toggleDepartmentActive = useCatalogStore((s) => s.toggleDepartmentActive);
+  const { data: departments, isLoading } = useAdminDepartments();
+  const createMutation = useCreateDepartment();
+  const updateMutation = useUpdateDepartment();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', code: '', description: '', officeId: offices[0]?.id });
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: '', code: '', description: '', officeId: offices[0]?.id });
+    setForm(EMPTY_FORM);
     setIsModalOpen(true);
   };
 
   const openEdit = (dept) => {
     setEditing(dept);
-    setForm({ name: dept.name, code: dept.code, description: dept.description, officeId: dept.officeId });
+    setForm({
+      departmentName: dept.departmentName,
+      departmentCode: dept.departmentCode,
+      officeLocation: dept.officeLocation,
+      openingTime: dept.openingTime,
+      closingTime: dept.closingTime,
+      description: dept.description || '',
+    });
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
-    if (!form.name || !form.code) {
-      toast.error('Name and code are required');
+  const handleSave = async () => {
+    if (!form.departmentName || !form.departmentCode || !form.officeLocation) {
+      toast.error('Name, code, and office location are required');
       return;
     }
-    if (editing) {
-      updateDepartment(editing.id, form);
-      toast.success('Department updated');
-    } else {
-      addDepartment(form);
-      toast.success('Department created');
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing._id, payload: form });
+      } else {
+        await createMutation.mutateAsync(form);
+      }
+      setIsModalOpen(false);
+    } catch {
+      // Error toast already shown by the mutation's onError handler.
     }
-    setIsModalOpen(false);
+  };
+
+  const handleToggleActive = async (dept) => {
+    try {
+      await updateMutation.mutateAsync({ id: dept._id, payload: { isActive: !dept.isActive } });
+    } catch {
+      // handled
+    }
   };
 
   return (
@@ -61,42 +85,40 @@ export default function DepartmentsPage() {
         }
       />
 
-      {departments.length === 0 ? (
+      {isLoading ? (
+        <SkeletonCard />
+      ) : departments?.length === 0 ? (
         <EmptyState icon={Building2} title="No departments" description="Create your first department." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {departments.map((dept) => {
-            const office = offices.find((o) => o.id === dept.officeId);
-            return (
-              <Card key={dept.id}>
-                <CardBody>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">{dept.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{dept.code}</p>
-                    </div>
-                    <Badge variant={dept.isActive ? 'success' : 'default'}>
-                      {dept.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
+          {departments?.map((dept) => (
+            <Card key={dept._id}>
+              <CardBody>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{dept.departmentName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{dept.departmentCode}</p>
                   </div>
-                  <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{dept.description}</p>
-                  <p className="mt-2 text-xs text-gray-400">{office?.name}</p>
-                  <p className="mt-1 text-xs text-gray-400">
-                    Token limit: {dept.tokenLimit}/day · {dept.operatingHours.openHour}:00–
-                    {dept.operatingHours.closeHour}:00
-                  </p>
-                  <div className="mt-4 flex gap-2">
-                    <Button variant="secondary" size="sm" icon={Pencil} onClick={() => openEdit(dept)}>
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => toggleDepartmentActive(dept.id)}>
-                      {dept.isActive ? 'Deactivate' : 'Activate'}
-                    </Button>
-                  </div>
-                </CardBody>
-              </Card>
-            );
-          })}
+                  <Badge variant={dept.isActive ? 'success' : 'default'}>
+                    {dept.isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{dept.description}</p>
+                <p className="mt-2 text-xs text-gray-400">{dept.officeLocation}</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Hours: {dept.openingTime}–{dept.closingTime}
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <Button variant="secondary" size="sm" icon={Pencil} onClick={() => openEdit(dept)}>
+                    Edit
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleToggleActive(dept)}>
+                    {dept.isActive ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -109,7 +131,9 @@ export default function DepartmentsPage() {
             <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>{editing ? 'Save Changes' : 'Create'}</Button>
+            <Button onClick={handleSave} isLoading={createMutation.isPending || updateMutation.isPending}>
+              {editing ? 'Save Changes' : 'Create'}
+            </Button>
           </>
         }
       >
@@ -117,32 +141,41 @@ export default function DepartmentsPage() {
           <Input
             label="Department Name"
             required
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            value={form.departmentName}
+            onChange={(e) => setForm((f) => ({ ...f, departmentName: e.target.value }))}
           />
           <Input
             label="Code"
             required
             placeholder="e.g. PSP"
-            value={form.code}
-            onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+            value={form.departmentCode}
+            onChange={(e) => setForm((f) => ({ ...f, departmentCode: e.target.value.toUpperCase() }))}
           />
+          <Input
+            label="Office Location"
+            required
+            value={form.officeLocation}
+            onChange={(e) => setForm((f) => ({ ...f, officeLocation: e.target.value }))}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Opening Time"
+              type="time"
+              value={form.openingTime}
+              onChange={(e) => setForm((f) => ({ ...f, openingTime: e.target.value }))}
+            />
+            <Input
+              label="Closing Time"
+              type="time"
+              value={form.closingTime}
+              onChange={(e) => setForm((f) => ({ ...f, closingTime: e.target.value }))}
+            />
+          </div>
           <Input
             label="Description"
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           />
-          <Select
-            label="Office / Branch"
-            value={form.officeId}
-            onChange={(e) => setForm((f) => ({ ...f, officeId: e.target.value }))}
-          >
-            {offices.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </Select>
         </div>
       </Modal>
     </div>

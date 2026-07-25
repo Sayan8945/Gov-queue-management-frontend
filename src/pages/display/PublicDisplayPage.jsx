@@ -1,45 +1,70 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Landmark, Megaphone } from 'lucide-react';
-import { useQueueStore } from '@/store/queueStore';
-import { useCatalogStore } from '@/store/catalogStore';
+import { fetchDisplayDepartments, fetchDepartmentDisplay } from '@/services/displayService';
+import { getDisplaySocket } from '@/services/socketClient';
 import { formatDate, formatTime } from '@/utils/dateHelpers';
 
 /**
- * Large public display / TV screen. Intended to run full-screen in waiting
- * areas. Reads live from queueStore so it updates automatically as staff
- * call/complete tokens elsewhere in the app (simulated real-time).
- * TODO(backend): once Socket.IO exists, subscribe to department-scoped
- * 'queue:updated' events instead of relying on the local store subscription.
+ * Large public display / TV screen. Fetches real queue/counter/department
+ * data from MongoDB via the public display-board API, then stays live via
+ * the unauthenticated /display Socket.IO namespace — no mock data, no
+ * frontend simulation.
  */
 export default function PublicDisplayPage() {
   const [searchParams] = useSearchParams();
-  const departments = useCatalogStore((s) => s.departments);
-  const getServiceById = useCatalogStore((s) => s.getServiceById);
-  const departmentId = searchParams.get('dept') || departments[0]?.id;
-  const department = departments.find((d) => d.id === departmentId) || departments[0];
-
-  const [, setTick] = useState(0);
+  const queryClient = useQueryClient();
   const [now, setNow] = useState(new Date());
 
+  const { data: departments } = useQuery({
+    queryKey: ['display', 'departments'],
+    queryFn: fetchDisplayDepartments,
+    staleTime: 60000,
+  });
+
+  const departmentId = searchParams.get('dept') || departments?.[0]?._id;
+
+  const { data } = useQuery({
+    queryKey: ['display', departmentId],
+    queryFn: () => fetchDepartmentDisplay(departmentId),
+    enabled: Boolean(departmentId),
+    refetchInterval: 15000, // fallback poll in case a socket event is missed
+  });
+
   useEffect(() => {
-    const unsubscribe = useQueueStore.subscribe(() => setTick((t) => t + 1));
     const clockId = setInterval(() => setNow(new Date()), 1000);
-    return () => {
-      unsubscribe();
-      clearInterval(clockId);
-    };
+    return () => clearInterval(clockId);
   }, []);
 
-  const store = useQueueStore.getState();
-  const counters = store.getCountersForDepartment(department.id);
-  const nextTokens = store.getNextTokensPreview(department.id, 5);
-  const announcements = store.announcements;
+  useEffect(() => {
+    if (!departmentId) return undefined;
 
-  const activeServing = counters
-    .map((c) => ({ counter: c, token: store.getCurrentTokenForCounter(c.id) }))
-    .filter((entry) => entry.token);
+    const socket = getDisplaySocket();
+    socket.connect();
+    socket.emit('joinDepartment', departmentId);
+
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['display', departmentId] });
+    socket.on('displayRefresh', refresh);
+    socket.on('tokenCalledNotification', refresh);
+
+    return () => {
+      socket.off('displayRefresh', refresh);
+      socket.off('tokenCalledNotification', refresh);
+      socket.disconnect();
+    };
+  }, [departmentId, queryClient]);
+
+  if (!departments || !data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-950 text-gray-400">
+        Loading live queue data…
+      </div>
+    );
+  }
+
+  const { department, nowServing, nextTokens, counters } = data;
 
   return (
     <div className="min-h-screen bg-gray-950 p-6 text-white sm:p-10">
@@ -47,7 +72,7 @@ export default function PublicDisplayPage() {
         <div className="flex items-center gap-3">
           <Landmark className="h-10 w-10 text-primary-400" />
           <div>
-            <h1 className="text-2xl font-bold sm:text-3xl">{department.name}</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">{department?.departmentName}</h1>
             <p className="text-gray-400">Government Service Center</p>
           </div>
         </div>
@@ -62,16 +87,16 @@ export default function PublicDisplayPage() {
           <h2 className="mb-4 text-lg font-semibold uppercase tracking-wide text-gray-400">
             Now Serving
           </h2>
-          {activeServing.length === 0 ? (
+          {nowServing.length === 0 ? (
             <div className="rounded-2xl border border-gray-800 bg-gray-900 p-12 text-center text-gray-500">
               No tokens currently being served
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <AnimatePresence mode="popLayout">
-                {activeServing.map(({ counter, token }) => (
+                {nowServing.map((token) => (
                   <motion.div
-                    key={counter.id}
+                    key={token._id}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
@@ -79,12 +104,10 @@ export default function PublicDisplayPage() {
                     className="rounded-2xl border border-primary-800 bg-primary-950/60 p-6"
                   >
                     <p className="text-sm uppercase tracking-wide text-primary-300">
-                      Counter {counter.number}
+                      Counter {token.counterId?.counterNumber || '-'}
                     </p>
                     <p className="mt-2 text-5xl font-extrabold text-white">{token.tokenNumber}</p>
-                    <p className="mt-2 text-sm text-gray-400">
-                      {token.citizenName} · {getServiceById(token.serviceId)?.name}
-                    </p>
+                    <p className="mt-2 text-sm text-gray-400">{token.serviceId?.serviceName}</p>
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -94,11 +117,24 @@ export default function PublicDisplayPage() {
           <div className="mt-8 rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <div className="flex items-center gap-2 text-primary-400">
               <Megaphone className="h-5 w-5" />
-              <span className="text-sm font-semibold uppercase tracking-wide">Announcements</span>
+              <span className="text-sm font-semibold uppercase tracking-wide">Counter Status</span>
             </div>
-            <p className="mt-2 text-lg text-gray-200">
-              {announcements[0]?.message || 'Welcome to the Citizen Service Center.'}
-            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {counters.map((c) => (
+                <span
+                  key={c._id}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    c.status === 'active'
+                      ? 'bg-success-900/60 text-success-300'
+                      : c.status === 'break'
+                      ? 'bg-warning-900/60 text-warning-300'
+                      : 'bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  {c.counterNumber} · {c.status}
+                </span>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -114,7 +150,7 @@ export default function PublicDisplayPage() {
             ) : (
               nextTokens.map((token, idx) => (
                 <li
-                  key={token.id}
+                  key={token._id}
                   className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 p-4"
                 >
                   <div className="flex items-center gap-3">
@@ -123,9 +159,7 @@ export default function PublicDisplayPage() {
                     </span>
                     <span className="text-xl font-bold">{token.tokenNumber}</span>
                   </div>
-                  <span className="text-sm text-gray-500">
-                    {getServiceById(token.serviceId)?.name}
-                  </span>
+                  <span className="text-sm text-gray-500">{token.serviceId?.serviceName}</span>
                 </li>
               ))
             )}
