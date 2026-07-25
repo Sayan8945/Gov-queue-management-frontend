@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import OtpInput from '@/components/ui/OtpInput';
 import Button from '@/components/ui/Button';
+import { notifyEmailSent } from '@/utils/emailToast';
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -48,7 +49,7 @@ export default function VerifyResetOtpPage() {
     setError('');
     try {
       await resendPasswordResetOtp();
-      toast.success('A new code has been sent to your email');
+      notifyEmailSent('A new code has been sent to your email.');
       setCooldown(RESEND_COOLDOWN_SECONDS);
       setOtp('');
     } catch (err) {

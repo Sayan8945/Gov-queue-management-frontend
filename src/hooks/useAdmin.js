@@ -1,18 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import * as adminService from '@/services/adminService';
+import { useAuth } from '@/hooks/useAuth';
+import { useNotificationStore } from '@/store/notificationStore';
 
 function useAdminQuery(key, queryFn, options) {
   return useQuery({ queryKey: key, queryFn, ...options });
 }
 
+// Every admin mutation that succeeds also drops an entry into the admin's
+// own in-app notification center (bell + /admin/notifications), so the
+// admin has a running log of every action they've taken — not just a
+// toast that disappears in a few seconds.
 function useAdminMutation(mutationFn, invalidateKeys, successMessage) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const addNotification = useNotificationStore((s) => s.addNotification);
   return useMutation({
     mutationFn,
     onSuccess: () => {
       invalidateKeys.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
-      if (successMessage) toast.success(successMessage);
+      if (successMessage) {
+        toast.success(successMessage);
+        addNotification({
+          recipientId: user?.id,
+          title: 'Action completed',
+          message: successMessage,
+          type: 'success',
+          channel: 'push',
+        });
+      }
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Action failed');

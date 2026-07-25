@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import Input from '@/components/ui/Input';
 import PasswordInput from '@/components/ui/PasswordInput';
 import Button from '@/components/ui/Button';
+import { notifyEmailSent } from '@/utils/emailToast';
 
 const schema = z
   .object({
@@ -43,7 +44,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     try {
       await registerCitizen(data);
-      toast.success('Registration successful. Check your email for a verification code.');
+      notifyEmailSent('Registration successful. A verification code has been sent to your email.');
       navigate('/verify-email', { replace: true });
     } catch (error) {
       toast.error(error.message || 'Registration failed');

@@ -9,6 +9,8 @@ import {
   pauseCounterRequest,
   resumeCounterRequest,
 } from '@/services/staffService';
+import { useAuth } from '@/hooks/useAuth';
+import { useNotificationStore } from '@/store/notificationStore';
 
 const QUEUE_KEY = ['staff', 'current-queue'];
 
@@ -26,13 +28,27 @@ export function useStaffQueue() {
   });
 }
 
+// Every queue action a staff member takes also lands in their own in-app
+// notification center, so /staff/notifications shows a running log of
+// calls, completions, skips, and counter pause/resume actions.
 function useStaffQueueMutation(mutationFn, successMessage) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const addNotification = useNotificationStore((s) => s.addNotification);
   return useMutation({
     mutationFn,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUEUE_KEY });
-      if (successMessage) toast.success(successMessage);
+      if (successMessage) {
+        toast.success(successMessage);
+        addNotification({
+          recipientId: user?.id,
+          title: 'Action completed',
+          message: successMessage,
+          type: 'success',
+          channel: 'push',
+        });
+      }
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Action failed');

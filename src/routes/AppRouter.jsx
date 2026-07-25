@@ -19,7 +19,7 @@ import MyTokensPage from '@/pages/citizen/MyTokensPage';
 import TokenDetailsPage from '@/pages/citizen/TokenDetailsPage';
 import ReschedulePage from '@/pages/citizen/ReschedulePage';
 import HistoryPage from '@/pages/citizen/HistoryPage';
-import NotificationsPage from '@/pages/citizen/NotificationsPage';
+import NotificationsPage from '@/pages/shared/NotificationsPage';
 import ProfilePage from '@/pages/citizen/ProfilePage';
 
 import StaffLayout from '@/layouts/StaffLayout';
@@ -88,6 +88,7 @@ const router = createBrowserRouter([
           { path: '/staff/dashboard', element: <StaffDashboardPage /> },
           { path: '/staff/queue', element: <StaffQueueMonitorPage /> },
           { path: '/staff/departments', element: <StaffDepartmentsPage /> },
+          { path: '/staff/notifications', element: <NotificationsPage /> },
         ],
       },
     ],
@@ -108,6 +109,7 @@ const router = createBrowserRouter([
           { path: '/admin/priority-queue', element: <PriorityQueuePage /> },
           { path: '/admin/analytics', element: <AnalyticsPage /> },
           { path: '/admin/reports', element: <ReportsPage /> },
+          { path: '/admin/notifications', element: <NotificationsPage /> },
         ],
       },
     ],

@@ -8,6 +8,7 @@ import { KeyRound } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import { notifyEmailSent } from '@/utils/emailToast';
 
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -28,7 +29,7 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
     try {
       await requestPasswordReset(data.email);
-      toast.success('If an account exists, a verification code has been sent to your email.');
+      notifyEmailSent('If an account exists, a verification code has been sent to your email.');
       navigate('/verify-reset-otp', { replace: true });
     } catch (error) {
       toast.error(error.message || 'Something went wrong');
