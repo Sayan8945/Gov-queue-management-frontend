@@ -1,6 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { Landmark, ArrowLeft } from 'lucide-react';
-import ServerDelayModal from '@/components/shared/ServerDelayModal';
 
 export default function AuthLayout() {
   const navigate = useNavigate();
@@ -41,7 +40,6 @@ export default function AuthLayout() {
           <Outlet />
         </div>
       </div>
-      <ServerDelayModal />
     </div>
   );
 }
