@@ -66,7 +66,7 @@ export default function RegisterPage() {
         <Input
           label="Full name"
           autoComplete="name"
-          placeholder="Jane Doe"
+          placeholder="Your name"
           required
           error={errors.fullName?.message}
           {...register('fullName')}
@@ -84,7 +84,7 @@ export default function RegisterPage() {
           label="Phone number"
           type="tel"
           autoComplete="tel"
-          placeholder="+91 98765 43210"
+          placeholder="+91 "
           required
           error={errors.mobileNumber?.message}
           {...register('mobileNumber')}
